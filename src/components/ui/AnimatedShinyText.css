@@ -1,0 +1,25 @@
+/* src/components/ui/AnimatedShinyText.css */
+.animated-shiny-text {
+    display: inline-block;
+    background: linear-gradient(110deg,
+            #475569 40%,
+            #94a3b8 50%,
+            #475569 60%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shine 3s linear infinite;
+    font-weight: 600;
+    /* Ensure weight is maintained */
+}
+
+@keyframes shine {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: -100% 0;
+    }
+}
