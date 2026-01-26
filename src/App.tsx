@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { HomePage, CoursesPage, HowItWorksPage, AboutPage, PythonCoursePage, TopicLearningPage, PythonBasicsSection, ComingSoonPage, Login, Signup, Profile, ExperiencePage } from './pages';
+import { HomePage, CoursesPage, HowItWorksPage, AboutPage, PythonCoursePage, DsaCoursePage, TopicLearningPage, PythonBasicsSection, DsaArraysSection, DsaStringsSection, DsaSearchingSection, DsaSortingSection, DsaRecursionSection, DsaStackSection, DsaQueueSection, DsaLinkedListSection, ComingSoonPage, Login, Signup, Profile, ExperiencePage, DsaTreeSection, DsaGraphSection, LogicCodePage } from './pages';
 import { Header, Footer } from './components/ui';
 
 import ProtectedRoute from './components/ProtectedRoute';
@@ -79,6 +79,95 @@ function App() {
             }
           />
           <Route
+            path="/courses/dsa"
+            element={
+              <PageLayout>
+                <DsaCoursePage />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/arrays"
+            element={
+              <PageLayout>
+                <DsaArraysSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/strings"
+            element={
+              <PageLayout>
+                <DsaStringsSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/searching"
+            element={
+              <PageLayout>
+                <DsaSearchingSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/sorting"
+            element={
+              <PageLayout>
+                <DsaSortingSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/recursion"
+            element={
+              <PageLayout>
+                <DsaRecursionSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/stack"
+            element={
+              <PageLayout>
+                <DsaStackSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/queue"
+            element={
+              <PageLayout>
+                <DsaQueueSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/linked-list"
+            element={
+              <PageLayout>
+                <DsaLinkedListSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/tree"
+            element={
+              <PageLayout>
+                <DsaTreeSection />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/courses/dsa/section/graph"
+            element={
+              <PageLayout>
+                <DsaGraphSection />
+              </PageLayout>
+            }
+          />
+
+          <Route
             path="/courses/python/topic/:topicId"
             element={
               <PageLayout>
@@ -111,6 +200,11 @@ function App() {
                 <Profile />
               </PageLayout>
             }
+          />
+          {/* Logic-First Coding Interface */}
+          <Route
+            path="/logic-code"
+            element={<LogicCodePage />}
           />
           <Route
             path="/experience/:type"

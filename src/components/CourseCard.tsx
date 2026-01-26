@@ -23,19 +23,23 @@ export interface CourseData {
   tasks?: number; // Used for "Tasks" or "Topics"
   projects?: number; // Optional 2nd stat
   totalModules?: number; // Total count display
+  taskLabel?: string;
+  projectLabel?: string;
 
   // Progress Data
   sections?: CourseSection[];
+  visible?: boolean;
 }
 
 interface CourseCardProps {
   course: CourseData;
   index: number;
   showProjects?: boolean; // Toggle for second stat if needed
-  taskLabel?: string; // "tasks" or "topics"
+  taskLabel?: string; // "tasks" or "topics" (Default fallback)
+  explicitProgress?: { completed: number; total: number };
 }
 
-export const CourseCard = ({ course, index, showProjects = true, taskLabel = "tasks" }: CourseCardProps) => {
+export const CourseCard = ({ course, index, showProjects = true, taskLabel = "tasks", explicitProgress }: CourseCardProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-50px' });
 
@@ -45,29 +49,61 @@ export const CourseCard = ({ course, index, showProjects = true, taskLabel = "ta
 
   // Calculate actual course progress
   const getCourseProgress = (): { percent: number; completed: number; total: number } => {
+    if (explicitProgress) {
+      const { completed, total } = explicitProgress;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { percent, completed, total };
+    }
+
     // If no sections provided, try to use totalModules as a fallback or return 0
-    if (!user || !progress || !course.sections) {
+    if (!course.sections) {
       return { percent: 0, completed: 0, total: course.totalModules || 0 };
     }
 
-    const courseProgress = progress[course.id];
-    if (!courseProgress) {
-      // Calculate total topics from sections even if no progress
-      const total = course.sections.reduce((acc, curr) => acc + curr.topics, 0);
-      return { percent: 0, completed: 0, total: total || course.totalModules || 0 };
-    }
+    const courseProgressData = (user && progress) ? progress[course.id] : null;
 
     let completedTopics = 0;
     let totalTopics = 0;
 
     for (const section of course.sections) {
       totalTopics += section.topics;
-      const sectionProgress = courseProgress[section.id];
-      if (sectionProgress) {
-        completedTopics += Object.values(sectionProgress).filter(
-          (t): t is { completed: boolean } => typeof t === 'object' && t !== null && (t as { completed?: boolean }).completed === true
-        ).length;
+
+      // 1. Context Count
+      let contextCount = 0;
+      if (courseProgressData) {
+        const sectionProgress = courseProgressData[section.id];
+        if (sectionProgress) {
+          contextCount = Object.values(sectionProgress).filter(
+            (t): t is { completed: boolean } => typeof t === 'object' && t !== null && (t as { completed?: boolean }).completed === true
+          ).length;
+        }
       }
+
+      // 2. LocalStorage Count (DSA Only as requested)
+      let localCount = 0;
+      if (course.id === 'dsa') {
+        try {
+          // Note: In DsaCoursePage, key is `dsa_${section.id}_completed`
+          // Here course.id is 'dsa', so `${course.id}_${section.id}_completed` matches `dsa_...`
+          const localKey = `${course.id}_${section.id}_completed`;
+          const saved = localStorage.getItem(localKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            // Handle both Array (numeric IDs) and Object (legacy or different format)
+            if (Array.isArray(parsed)) {
+              localCount = parsed.length;
+            } else if (typeof parsed === 'object' && parsed !== null) {
+              // If it's an object, count keys that are truthy
+              localCount = Object.keys(parsed).length;
+            }
+          }
+        } catch (e) {
+          // ignore error
+        }
+      }
+
+      // Use the higher count to represent best-known state
+      completedTopics += Math.max(contextCount, localCount);
     }
 
     const percent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
@@ -75,6 +111,10 @@ export const CourseCard = ({ course, index, showProjects = true, taskLabel = "ta
   };
 
   const courseProgress = getCourseProgress();
+
+  // Helper labels
+  const effectiveTaskLabel = course.taskLabel || taskLabel;
+  const effectiveProjectLabel = course.projectLabel || "projects";
 
   const CardContent = (
     <motion.div
@@ -101,14 +141,14 @@ export const CourseCard = ({ course, index, showProjects = true, taskLabel = "ta
           <div className="course-card-stats">
             <div className="course-stat">
               <ClipboardList size={16} />
-              <span>{course.tasks || 0} {taskLabel}</span>
+              <span>{course.tasks || 0} {effectiveTaskLabel}</span>
             </div>
             {showProjects && course.projects !== undefined && (
               <>
                 <span className="course-stat-dot">•</span>
                 <div className="course-stat">
                   <Briefcase size={16} />
-                  <span>{course.projects} projects</span>
+                  <span>{course.projects} {effectiveProjectLabel}</span>
                 </div>
               </>
             )}

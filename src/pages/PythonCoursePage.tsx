@@ -1,38 +1,20 @@
 import { motion, useInView, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FadeInUp, ScrollReveal } from '../components/animations';
 import { ConfirmationModal } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
 import { useProgress } from '../context/ProgressContext';
+import { PYTHON_COURSE_DATA } from '../data/courseData';
 
 // LocalStorage key for progress (same as PythonBasicsSection)
 const PROGRESS_KEY = 'python_basics_completed';
-
-// Helper function to load progress
-const loadProgress = (): number[] => {
-  try {
-    const saved = localStorage.getItem(PROGRESS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-};
-
-// Topic ID to section ID mapping
-// const topicIdToName: Record<number, string> = {
-//   1: 'intro',
-//   2: 'variables',
-//   3: 'operators',
-//   4: 'strings',
-//   5: 'input-output',
-// };
 
 // Course data
 const courseInfo = {
   title: 'Python Programming',
   subtitle: 'Learn Python through visualization, logic-first thinking, and guided coding practice.',
   difficulty: 'Beginner to Intermediate',
-  topicsCount: 21,
   duration: 'Self-paced',
   icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
 };
@@ -43,61 +25,6 @@ const learningOutcomes = [
   'Clean coding practices',
   'Translating logic into implementation',
   'Confidence in solving real problems',
-];
-
-// Base course topics structure
-const baseCourseTopics = [
-  {
-    id: 'basics',
-    title: 'Python Basics',
-    topics: [
-      { id: 'intro', name: 'Introduction to Python', topicNum: 1 },
-      { id: 'variables', name: 'Variables and Data Types', topicNum: 2 },
-      { id: 'operators', name: 'Operators and Expressions', topicNum: 3 },
-      { id: 'strings', name: 'Working with Strings', topicNum: 4 },
-      { id: 'input-output', name: 'Input and Output', topicNum: 5 },
-    ],
-  },
-  {
-    id: 'control-flow',
-    title: 'Control Flow',
-    topics: [
-      { id: 'conditions', name: 'Conditional Statements', topicNum: 6 },
-      { id: 'loops', name: 'Loops (for and while)', topicNum: 7 },
-      { id: 'break-continue', name: 'Break and Continue', topicNum: 8 },
-      { id: 'nested', name: 'Nested Structures', topicNum: 9 },
-    ],
-  },
-  {
-    id: 'functions',
-    title: 'Functions',
-    topics: [
-      { id: 'def', name: 'Defining Functions', topicNum: 10 },
-      { id: 'params', name: 'Parameters and Arguments', topicNum: 11 },
-      { id: 'return', name: 'Return Values', topicNum: 12 },
-      { id: 'scope', name: 'Scope and Lifetime', topicNum: 13 },
-      { id: 'lambda', name: 'Lambda Functions', topicNum: 14 },
-    ],
-  },
-  {
-    id: 'data-structures',
-    title: 'Data Structures',
-    topics: [
-      { id: 'lists', name: 'Lists', topicNum: 15 },
-      { id: 'tuples', name: 'Tuples', topicNum: 16 },
-      { id: 'dicts', name: 'Dictionaries', topicNum: 17 },
-      { id: 'sets', name: 'Sets', topicNum: 18 },
-    ],
-  },
-  {
-    id: 'problem-solving',
-    title: 'Problem Solving',
-    topics: [
-      { id: 'approach', name: 'Problem-Solving Approach', topicNum: 19 },
-      { id: 'patterns', name: 'Common Patterns', topicNum: 20 },
-      { id: 'practice', name: 'Practice Problems', topicNum: 21 },
-    ],
-  },
 ];
 
 // Function to get status based on progress
@@ -159,12 +86,12 @@ const TopicSection = ({
   index,
   completedProgress
 }: {
-  section: typeof baseCourseTopics[0];
+  section: any;
   index: number;
   completedProgress: number[];
 }) => {
   const [isExpanded, setIsExpanded] = useState(index === 0);
-  const completedCount = section.topics.filter(t => completedProgress.includes(t.topicNum)).length;
+  const completedCount = section.topics.filter((t: any) => completedProgress.includes(t.topicNum)).length;
   const sectionUrl = section.id === 'basics' ? '/courses/python/section/basics' : '#';
 
   return (
@@ -199,7 +126,7 @@ const TopicSection = ({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {section.topics.map((topic, i) => {
+            {section.topics.map((topic: any, i: number) => {
               const status = getTopicStatus(topic.topicNum, completedProgress);
               return (
                 <motion.div
@@ -254,49 +181,99 @@ const LearningStep = ({ step, index }: { step: typeof learningSteps[0]; index: n
 
 // Main Python Course Page
 export const PythonCoursePage = () => {
-  const [completedProgress, setCompletedProgress] = useState<number[]>(loadProgress());
+  const [completedProgress, setCompletedProgress] = useState<number[]>([]);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const { resetSection } = useProgress();
+  const { user } = useAuth();
+  const { progress, resetSection, isTopicCompleted } = useProgress();
 
-  const handleReset = async () => {
+  // Dynamically generate topics with topicNum
+  const baseCourseTopics = useMemo(() => {
+    let currentTopicNum = 1;
+    return PYTHON_COURSE_DATA.map(section => ({
+      ...section,
+      topics: section.topics.map(topic => ({
+        id: topic.id, // Keep the numeric ID or slug as is
+        name: topic.title,
+        slug: topic.slug,
+        topicNum: currentTopicNum++,
+      }))
+    }));
+  }, []);
+
+  const totalTopics = useMemo(() => baseCourseTopics.reduce((acc, sec) => acc + sec.topics.length, 0), [baseCourseTopics]);
+
+  // Sync progress from Context and LocalStorage
+  useEffect(() => {
+    const newCompleted = new Set<number>();
+
+    baseCourseTopics.forEach(section => {
+      section.topics.forEach(topic => {
+        const key = topic.slug || String(topic.id);
+        let isCompleted = false;
+
+        // 1. Check Context
+        if (isTopicCompleted('python', section.id, key)) {
+          isCompleted = true;
+        }
+
+        // 2. Check LocalStorage (Union)
+        if (!isCompleted) {
+          try {
+            const localKey = `python_${section.id}_completed`;
+            const saved = localStorage.getItem(localKey);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed)) {
+                // LocalStorage saves IDs (1, 2, 3...) which are 1-based indices for that section
+                // Check if topic.id (which might be numeric) is in this list
+                // OR check if topic's index in section matches
+                // The safest way given how PythonBasicsSection saves is:
+                const topicIdNum = Number(topic.id);
+                if (parsed.includes(topicIdNum)) {
+                  isCompleted = true;
+                }
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (isCompleted) {
+          newCompleted.add(topic.topicNum);
+        }
+      });
+    });
+
+    setCompletedProgress(Array.from(newCompleted));
+  }, [progress, user, baseCourseTopics, isTopicCompleted]);
+
+  const handleResetCourse = async () => {
     try {
       // Clear localStorage
-      localStorage.removeItem(PROGRESS_KEY);
-      localStorage.removeItem('python_basics_coding_completed');
+      baseCourseTopics.forEach(section => {
+        localStorage.removeItem(`python_${section.id}_completed`);
+        localStorage.removeItem(`python_${section.id}_coding_completed`);
+      });
 
       // Clear Firestore context
-      await resetSection('python', 'basics');
+      if (user) {
+        const resetPromises = baseCourseTopics.map(section =>
+          resetSection('python', section.id)
+        );
+        await Promise.all(resetPromises);
+      }
 
       setCompletedProgress([]);
       window.scrollTo(0, 0);
+      setIsResetModalOpen(false);
     } catch (error) {
       console.error('Failed to reset course:', error);
     }
   };
 
-  // Reload progress when page becomes visible (e.g., user navigates back)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        setCompletedProgress(loadProgress());
-      }
-    };
-
-    const handleFocus = () => {
-      setCompletedProgress(loadProgress());
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  const totalTopics = baseCourseTopics.reduce((sum, s) => sum + s.topics.length, 0);
   const completedTopics = completedProgress.length;
+
   const progressPercent = Math.round((completedTopics / totalTopics) * 100);
 
   // Determine which section to continue from based on progress
@@ -397,24 +374,22 @@ export const PythonCoursePage = () => {
                 <a href="#topics" className="btn btn-secondary">View Topics</a>
               </div>
             </FadeInUp>
-            {progressPercent > 0 && (
-              <FadeInUp delay={0.3}>
-                <div className="progress-indicator">
-                  <div className="progress-header">
-                    <span>Your Progress</span>
-                    <span>{progressPercent}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <motion.div
-                      className="progress-fill"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progressPercent}%` }}
-                      transition={{ duration: 0.8, delay: 0.5 }}
-                    />
-                  </div>
+            <FadeInUp delay={0.3}>
+              <div className="progress-indicator">
+                <div className="progress-header">
+                  <span>Your Progress</span>
+                  <span>{progressPercent}%</span>
                 </div>
-              </FadeInUp>
-            )}
+                <div className="progress-bar">
+                  <motion.div
+                    className="progress-fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ duration: 0.8, delay: 0.5 }}
+                  />
+                </div>
+              </div>
+            </FadeInUp>
           </div>
         </div >
       </section >
@@ -527,7 +502,7 @@ export const PythonCoursePage = () => {
       <ConfirmationModal
         isOpen={isResetModalOpen}
         onClose={() => setIsResetModalOpen(false)}
-        onConfirm={handleReset}
+        onConfirm={handleResetCourse}
         title="Reset Course Progress"
         message="Are you sure you want to reset your entire Python course progress? This action cannot be undone and will clear all topic completions and coding progress."
         confirmText="Reset Progress"

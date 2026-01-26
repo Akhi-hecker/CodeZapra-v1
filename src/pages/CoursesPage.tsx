@@ -3,7 +3,13 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FadeInUp, ScrollReveal } from '../components/animations';
 import { CourseCard } from '../components/CourseCard';
+import { useProgress } from '../context/ProgressContext';
 import dsaIcon from '../assets/dsa-icon.png';
+
+import { DSA_COURSE_DATA, PYTHON_COURSE_DATA } from '../data/courseData';
+
+// Helper to count total topics
+const countTopics = (sections: any[]) => sections.reduce((acc, sec) => acc + sec.topics.length, 0);
 
 // Course data
 const courses = [
@@ -12,19 +18,19 @@ const courses = [
     name: 'Python',
     description: 'Master principles of programming.',
     difficulty: 'Beginner',
-    topics: 21,
+    topics: countTopics(PYTHON_COURSE_DATA),
+    projects: 3,
+    taskLabel: 'videos',
+    projectLabel: 'coding problems',
     category: 'Programming Languages',
     icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg',
     // Exact color from home page Courses.tsx
     color: '#FCE4EC',
     // Define sections and their topic counts for progress tracking (matches PythonCoursePage)
-    sections: [
-      { id: 'basics', topics: 5 },
-      { id: 'control-flow', topics: 4 },
-      { id: 'functions', topics: 5 },
-      { id: 'data-structures', topics: 4 },
-      { id: 'problem-solving', topics: 3 },
-    ],
+    sections: PYTHON_COURSE_DATA.map(section => ({
+      id: section.id,
+      topics: section.topics.length
+    })),
   },
   {
     id: 'java',
@@ -36,6 +42,7 @@ const courses = [
     icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/java/java-original.svg',
     // Exact color from home page Courses.tsx
     color: '#E0F2FE',
+    visible: false,
   },
   {
     id: 'javascript',
@@ -47,25 +54,33 @@ const courses = [
     icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/javascript/javascript-original.svg',
     // Exact color from home page Courses.tsx
     color: '#FEF9C3',
+    visible: false,
   },
   {
     id: 'dsa',
-    name: 'Data Structures', // Renamed as requested
-    description: 'Master core data structures through clear, interactive visualizations.',
+    name: 'DSA',
+    description: 'Master Data Structures & Algorithms (DSA) through clear, interactive visualizations.',
     difficulty: 'Intermediate',
-    topics: 60,
+    topics: countTopics(DSA_COURSE_DATA),
+    projects: 52,
+    taskLabel: 'videos',
+    projectLabel: 'coding problems',
     category: 'Data Structures & Algorithms',
     // Using Nodejs icon to match home page, or could be kept as emoji if handled by CourseCard
     icon: dsaIcon,
     // Exact color from home page Courses.tsx
     color: '#DCFCE7',
+    sections: DSA_COURSE_DATA.map(section => ({
+      id: section.id,
+      topics: section.topics.length
+    })),
   },
 ];
 
 const filters = [
   { id: 'all', label: 'All' },
   { id: 'programming', label: 'Programming Languages' },
-  { id: 'dsa', label: 'Data Structures' }, // Updated label for consistency
+  { id: 'dsa', label: 'DSA' }, // Updated label for consistency
   { id: 'beginner', label: 'Beginner' },
   { id: 'intermediate', label: 'Intermediate' },
 ];
@@ -151,8 +166,11 @@ const LearningStructureItem = ({ item, index }: { item: typeof learningStructure
 // Main Courses Page
 export const CoursesPage = () => {
   const [activeFilter, setActiveFilter] = useState('all');
+  const { isTopicCompleted } = useProgress();
 
   const filteredCourses = courses.filter(course => {
+    // Hide courses with visible: false
+    if (course.visible === false) return false;
     if (activeFilter === 'all') return true;
     if (activeFilter === 'programming') return course.category === 'Programming Languages';
     if (activeFilter === 'dsa') return course.category === 'Data Structures & Algorithms';
@@ -206,26 +224,113 @@ export const CoursesPage = () => {
       <section className="courses-section">
         <div className="container">
           <div className="courses-grid">
-            {filteredCourses.map((course, index) => (
-              <CourseCard
-                key={course.id}
-                course={{
-                  id: course.id,
-                  name: course.name,
-                  description: course.description,
-                  badge: course.difficulty,
-                  // Use color directly as it is now the exact pastel color
-                  bgColor: course.color,
-                  avatarUrl: course.icon,
-                  tasks: course.topics,
-                  sections: course.sections,
-                  link: `/courses/${course.id}`
-                }}
-                taskLabel="topics"
-                showProjects={false}
-                index={index}
-              />
-            ))}
+            {filteredCourses.map((course, index) => {
+              // Calculate specific progress override for DSA
+              let explicitProgress = undefined;
+              if (course.id === 'dsa') {
+                // Calculate Union of Context and LocalStorage for DSA
+                let completedCount = 0;
+                const totalTopics = (course.sections || []).reduce((acc, s) => acc + s.topics, 0);
+
+                DSA_COURSE_DATA.forEach(section => {
+                  let sectionCompletedTopics = new Set<string>();
+
+                  // 1. From Context
+                  section.topics.forEach(topic => {
+                    const key = topic.slug || String(topic.id);
+                    if (isTopicCompleted('dsa', section.id, key)) {
+                      sectionCompletedTopics.add(key);
+                    }
+                  });
+
+                  // 2. From LocalStorage
+                  try {
+                    const localKey = `dsa_${section.id}_completed`;
+                    const saved = localStorage.getItem(localKey);
+                    if (saved) {
+                      const parsed = JSON.parse(saved);
+                      if (Array.isArray(parsed)) {
+                        parsed.forEach((localId: number) => {
+                          const idx = localId - 1;
+                          if (idx >= 0 && idx < section.topics.length) {
+                            const topic = section.topics[idx];
+                            const key = topic.slug || String(topic.id);
+                            sectionCompletedTopics.add(key);
+                          }
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                  completedCount += sectionCompletedTopics.size;
+                });
+                explicitProgress = { completed: completedCount, total: totalTopics };
+              } else if (course.id === 'python') {
+                // Calculate Union of Context and LocalStorage for Python
+                let completedCount = 0;
+                const totalTopics = (course.sections || []).reduce((acc, s) => acc + s.topics, 0);
+
+                PYTHON_COURSE_DATA.forEach(section => {
+                  let sectionCompletedTopics = new Set<string>();
+
+                  // 1. From Context
+                  section.topics.forEach(topic => {
+                    const key = topic.slug || String(topic.id);
+                    if (isTopicCompleted('python', section.id, key)) {
+                      sectionCompletedTopics.add(key);
+                    }
+                  });
+
+                  // 2. From LocalStorage
+                  try {
+                    const localKey = `python_${section.id}_completed`;
+                    const saved = localStorage.getItem(localKey);
+                    if (saved) {
+                      const parsed = JSON.parse(saved);
+                      if (Array.isArray(parsed)) {
+                        parsed.forEach((localId: number) => {
+                          const idx = localId - 1;
+                          if (idx >= 0 && idx < section.topics.length) {
+                            const topic = section.topics[idx];
+                            const key = topic.slug || String(topic.id);
+                            sectionCompletedTopics.add(key);
+                          }
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                  completedCount += sectionCompletedTopics.size;
+                });
+                explicitProgress = { completed: completedCount, total: totalTopics };
+              }
+
+              return (
+                <CourseCard
+                  key={course.id}
+                  course={{
+                    id: course.id,
+                    name: course.name,
+                    description: course.description,
+                    badge: course.difficulty,
+                    // Use color directly as it is now the exact pastel color
+                    bgColor: course.color,
+                    avatarUrl: course.icon,
+                    tasks: course.topics,
+                    projects: course.projects,
+                    taskLabel: course.taskLabel,
+                    projectLabel: course.projectLabel,
+                    sections: course.sections,
+                    link: `/courses/${course.id}`
+                  }}
+                  showProjects={true}
+                  index={index}
+                  explicitProgress={explicitProgress}
+                />
+              );
+            })}
           </div>
           {filteredCourses.length === 0 && (
             <p className="no-courses">No courses found for this filter.</p>

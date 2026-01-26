@@ -1,0 +1,5 @@
+{
+  "name": "Coding Question Editor",
+  "description": "A high-fidelity React implementation of a coding interview interface with a split-pane layout, code editor, and test case management.",
+  "requestFramePermissions": []
+}
