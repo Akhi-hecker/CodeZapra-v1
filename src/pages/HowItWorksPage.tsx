@@ -580,10 +580,11 @@ export const HowItWorksPage = () => {
 
         .step-number {
           display: inline-block;
+          white-space: nowrap;
           font-size: 0.65rem;
-          font-weight: 600; /* Reduced from 700 to match course badge */
-          color: #1f2937; /* Dark Grey */
-          background: rgba(55, 65, 81, 0.15); /* Grey Pill BG */
+          font-weight: 600;
+          color: #1f2937;
+          background: rgba(55, 65, 81, 0.15);
           padding: 0.2rem 0.6rem;
           border-radius: 20px;
           margin-bottom: 0.25rem;
