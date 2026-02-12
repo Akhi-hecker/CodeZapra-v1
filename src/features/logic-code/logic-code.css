@@ -99,7 +99,7 @@
     opacity: 0.7;
 }
 
-.step-number {
+.logic-code-interface .step-number {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -113,12 +113,12 @@
     transition: all var(--logic-transition-normal);
 }
 
-.step.active .step-number {
+.logic-code-interface .step.active .step-number {
     background: var(--logic-think-accent);
     color: white;
 }
 
-.step.completed .step-number {
+.logic-code-interface .step.completed .step-number {
     background: var(--logic-success);
     color: white;
 }
@@ -888,6 +888,7 @@
     color: var(--logic-code-text);
     text-decoration: underline;
 }
+
 /* Completed Card UI - Premium Gradient (Restored) */
 .completed-card {
     background: linear-gradient(90deg, #ecfdf5 0%, #ffffff 60%) !important;
@@ -959,7 +960,7 @@
     padding: 2px 8px;
     border-radius: 99px;
     text-transform: uppercase;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .completed-card h4 {
@@ -999,12 +1000,12 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .practice-again-btn:hover {
     background: #111827;
     color: #ffffff;
     border-color: #111827;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
